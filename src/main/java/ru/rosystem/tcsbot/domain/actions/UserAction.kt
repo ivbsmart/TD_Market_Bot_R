@@ -23,5 +23,6 @@ internal data class ActionData(
     val lastActionButton: Long = 0,
     val selectedWorkType: WorkType? = null,
     val purposePrice: Long = 0,
+    val retailPrice: Long = 0,
     val withDoc: Boolean = false
 )

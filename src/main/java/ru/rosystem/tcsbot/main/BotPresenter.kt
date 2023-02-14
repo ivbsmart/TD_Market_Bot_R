@@ -54,6 +54,17 @@ internal class BotPresenterImpl(private val bot: BotContract.Bot) : BotContract.
                     if (isCommand(update.message)) handleCommand(update) else {
                         checkChoiсeWorkType(update.message.text, update.message.chatId)
                         when {
+                            userActionMap[UserAction(update.message.chatId,"VALUES_ASK")] != null -> {
+                                val actionData = userActionMap[UserAction(update.message.chatId,"VALUES_ASK")]!!
+                                userActionMap[UserAction(update.message.chatId,"VALUES_ASK")] = null
+                                val withDocTax = if (actionData.withDoc) 7L else 2L
+                                val volume = update.message.text.toLong()
+                                when (actionData.selectedWorkType) {
+                                    WorkType.OUR_PROFIT -> ourProfit(update.message.chatId, actionData.retailPrice, actionData.purposePrice, actionData.withDoc, volume)
+                                    WorkType.PURCHASE -> zeroPurchase(update.message.chatId, update.message.text, withDocTax, volume)
+                                    WorkType.RETAIL -> zeroPurchase(update.message.chatId, update.message.text, withDocTax, volume)
+                                }
+                            }
                             userActionMap[UserAction(
                                 update.message.chatId,
                                 CommandMessages.ASK_POURCHASE_PRICE
@@ -68,7 +79,13 @@ internal class BotPresenterImpl(private val bot: BotContract.Bot) : BotContract.
                                     CommandMessages.ASK_POURCHASE_PRICE
                                 )] = null
                                 val retailPrice = update.message.text.toLong()
-                                ourProfit(update.message.chatId, retailPrice, purposePrice, actionData.withDoc)
+                                userActionMap[UserAction(update.message.chatId,"VALUES_ASK")] = ActionData(
+                                    selectedWorkType = WorkType.OUR_PROFIT,
+                                    withDoc = actionData.withDoc,
+                                    purposePrice = purposePrice,
+                                    retailPrice = retailPrice
+                                )
+                                askValues(update.message.chatId)
                             }
                             userActionMap[update.message.chatId.actionWithDoc] != null -> {
                                 userActionMap[update.message.chatId.actionWithDoc] = null
@@ -80,11 +97,12 @@ internal class BotPresenterImpl(private val bot: BotContract.Bot) : BotContract.
                                 ) {
                                     askRetailPrice(update, withDoc = true)
                                 } else {
-                                    when(currentWorkType) {
-                                        WorkType.RETAIL -> zeroPurchase(update.message.chatId, update.message.text, 7)
-                                        WorkType.PURCHASE -> zeroPurchase(update.message.chatId, update.message.text, 7)
-                                        WorkType.OUR_PROFIT -> zeroPurchase(update.message.chatId, update.message.text, 7)
-                                    }
+                                    userActionMap[UserAction(update.message.chatId,"VALUES_ASK")] = ActionData(
+                                        selectedWorkType = currentWorkType,
+                                        withDoc = true,
+                                        retailPrice = update.message.text.toLong()
+                                    )
+                                    askValues(update.message.chatId)
                                 }
 
                             }
@@ -98,14 +116,12 @@ internal class BotPresenterImpl(private val bot: BotContract.Bot) : BotContract.
                                 ) {
                                     askRetailPrice(update, withDoc = false)
                                 } else {
-                                    when (currentWorkType) {
-                                        WorkType.RETAIL -> zeroPurchase(update.message.chatId, update.message.text, 2)
-                                        WorkType.PURCHASE -> zeroPurchase(update.message.chatId, update.message.text, 2)
-                                        WorkType.OUR_PROFIT -> zeroPurchase(update.message.chatId, update.message.text, 2)
-                                        else -> {
-
-                                        }
-                                    }
+                                    userActionMap[UserAction(update.message.chatId,"VALUES_ASK")] = ActionData(
+                                        selectedWorkType = currentWorkType,
+                                        withDoc = false,
+                                        retailPrice = update.message.text.toLong()
+                                    )
+                                    askValues(update.message.chatId)
                                 }
                             }
                         }
@@ -118,8 +134,12 @@ internal class BotPresenterImpl(private val bot: BotContract.Bot) : BotContract.
         }
     }
 
-    private fun ourProfit(chatId: Long, retailPrice: Long, purchasePrice: Long, withDoc: Boolean) {
-        bot.sendMessage(chatId, "Вот тут результат расчета")
+    private fun askValues(chatId: Long) {
+        bot.sendMessage(chatId, "Какой объем?")
+    }
+
+    private fun ourProfit(chatId: Long, retailPrice: Long, purchasePrice: Long, withDoc: Boolean, volume: Long) {
+        bot.sendMessage(chatId, "Вот тут результат расчета. Volume: $volume")
     }
 
     private fun askRetailPrice(update: Update, withDoc: Boolean){
@@ -130,7 +150,7 @@ internal class BotPresenterImpl(private val bot: BotContract.Bot) : BotContract.
         bot.sendMessage(update.message.chatId, CommandMessages.ASK_RETAIL_PRICE)
     }
 
-    private fun zeroPurchase(chatId: Long, retailPrice: String, withDocTax: Long) {
+    private fun zeroPurchase(chatId: Long, retailPrice: String, withDocTax: Long, volume: Long) {
         val selectedCategory = userActionMap[chatId.actionSelectedCategory]?.selectCategory
         val retailPriceL: Long = retailPrice.toLong()
 
