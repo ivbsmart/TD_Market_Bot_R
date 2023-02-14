@@ -1,5 +1,6 @@
 package ru.rosystem.tcsbot.main
 
+import com.sun.org.apache.xpath.internal.operations.Bool
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -66,13 +67,8 @@ internal class BotPresenterImpl(private val bot: BotContract.Bot) : BotContract.
                                     update.message.chatId,
                                     CommandMessages.ASK_POURCHASE_PRICE
                                 )] = null
-
                                 val retailPrice = update.message.text.toLong()
-
-                                bot.sendMessage(update.message.chatId, "Пока нет метода расчета, поэтому вот\n" +
-                                        "введенные значения: закупочная $purposePrice, розничная $retailPrice, withDoc=${
-                                            actionData.withDoc
-                                        }")
+                                ourProfit(update.message.chatId, retailPrice, purposePrice, actionData.withDoc)
                             }
                             userActionMap[update.message.chatId.actionWithDoc] != null -> {
                                 userActionMap[update.message.chatId.actionWithDoc] = null
@@ -88,9 +84,6 @@ internal class BotPresenterImpl(private val bot: BotContract.Bot) : BotContract.
                                         WorkType.RETAIL -> zeroPurchase(update.message.chatId, update.message.text, 7)
                                         WorkType.PURCHASE -> zeroPurchase(update.message.chatId, update.message.text, 7)
                                         WorkType.OUR_PROFIT -> zeroPurchase(update.message.chatId, update.message.text, 7)
-                                        else -> {
-
-                                        }
                                     }
                                 }
 
@@ -123,6 +116,10 @@ internal class BotPresenterImpl(private val bot: BotContract.Bot) : BotContract.
             }
 
         }
+    }
+
+    private fun ourProfit(chatId: Long, retailPrice: Long, purchasePrice: Long, withDoc: Boolean) {
+        bot.sendMessage(chatId, "Вот тут результат расчета")
     }
 
     private fun askRetailPrice(update: Update, withDoc: Boolean){
